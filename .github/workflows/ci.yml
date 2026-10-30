@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# 同一分支只保留最新的构建，节省 CI 资源
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     name: 前端 lint / 类型检查 / 测试 / 构建

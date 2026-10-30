@@ -70,6 +70,8 @@ public class AuthService {
     }
 
     public AuthResponse issueSession(User user) {
+        // 顺带清理该用户已过期的会话，避免长期运行下会话表无限增长
+        sessionMapper.deleteExpiredByUser(user.getId(), LocalDateTime.now());
         String token = UUID.randomUUID().toString().replace("-", "");
         LocalDateTime now = LocalDateTime.now();
         Session session = new Session();

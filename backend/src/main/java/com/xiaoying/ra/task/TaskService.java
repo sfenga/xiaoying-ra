@@ -12,6 +12,9 @@ import com.xiaoying.ra.template.Template;
 import com.xiaoying.ra.template.TemplateService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
@@ -46,6 +49,7 @@ public class TaskService {
         this.taskRunner = taskRunner;
     }
 
+    @Transactional
     public Map<String, Object> submit(User user, SubmitTaskRequest request) {
         Template template = templateService.get(request.templateId());
         List<Long> assetIds = new LinkedHashSet<>(request.assetIds()).stream().toList();
@@ -72,14 +76,20 @@ public class TaskService {
         }
         assets.forEach(asset -> assetMapper.bindTask(asset.getId(), task.getId()));
 
-        // 受理完成即返回，不等待执行结束；线程池满则任务落库为失败并返回 503
-        try {
-            taskRunner.run(task.getId());
-        } catch (RejectedExecutionException e) {
-            log.warn("任务线程池已满：{}", task.getId());
-            taskMapper.markFailed(task.getId(), null, "系统繁忙，任务未能开始执行", LocalDateTime.now());
-            throw new ApiException(503, "系统繁忙，请稍后重试");
-        }
+        // 事务提交后再投递异步执行：保证任务/步骤/素材绑定原子落库，
+        // 也避免异步线程在事务提交前读不到任务数据。线程池满时任务落库为失败，由前端轮询呈现。
+        final String taskId = task.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    taskRunner.run(taskId);
+                } catch (RejectedExecutionException e) {
+                    log.warn("任务线程池已满：{}", taskId);
+                    taskMapper.markFailed(taskId, null, "系统繁忙，任务未能开始执行", LocalDateTime.now());
+                }
+            }
+        });
         return get(user, task.getId());
     }
 

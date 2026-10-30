@@ -3,7 +3,10 @@ package com.xiaoying.ra.auth;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+
+import java.time.LocalDateTime;
 
 @Mapper
 public interface SessionMapper {
@@ -17,4 +20,7 @@ public interface SessionMapper {
 
     @Delete("DELETE FROM t_session WHERE token = #{token}")
     int deleteByToken(String token);
+
+    @Delete("DELETE FROM t_session WHERE user_id = #{userId} AND expires_at < #{now}")
+    int deleteExpiredByUser(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 }

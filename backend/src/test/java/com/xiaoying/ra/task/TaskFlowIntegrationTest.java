@@ -353,6 +353,41 @@ class TaskFlowIntegrationTest {
     }
 
     @Test
+    void multipleTasksRunConcurrentlyToSuccess() throws Exception {
+        String token = registerAndGetToken();
+        List<String> taskIds = new java.util.ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            // 每个任务独立素材：提交绑定后配额释放，可继续上传下一组
+            long a1 = uploadAsset(token, "demo-postcard", "p" + i + "-a.png", pngBytes());
+            long a2 = uploadAsset(token, "demo-postcard", "p" + i + "-b.png", pngBytes());
+            JsonNode submitted = submitTask(token, "demo-postcard", List.of(a1, a2), null);
+            taskIds.add(submitted.get("task").get("id").asText());
+        }
+        // 线程池 core=3 可并行处理：三个任务都应全部成功，互不影响（R-04/R-08）
+        Awaitility.await().atMost(Duration.ofSeconds(15)).pollInterval(Duration.ofMillis(200))
+                .until(() -> {
+                    try {
+                        MvcResult res = mvc.perform(get("/api/tasks?ids=" + String.join(",", taskIds))
+                                        .header("Authorization", "Bearer " + token))
+                                .andExpect(status().isOk())
+                                .andReturn();
+                        JsonNode tasks = om.readTree(body(res)).get("tasks");
+                        if (tasks.size() != 3) {
+                            return false;
+                        }
+                        for (JsonNode t : tasks) {
+                            if (!"SUCCESS".equals(t.get("status").asText()) || t.get("resultUrl").isNull()) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                });
+    }
+
+    @Test
     void devApiReadsAndUpdatesSimulation() throws Exception {
         // 读取当前配置
         MvcResult before = mvc.perform(get("/api/dev/simulation"))

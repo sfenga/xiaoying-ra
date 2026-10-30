@@ -8,7 +8,9 @@ import Spinner from "@/components/Spinner";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/";
+  // 仅允许站内相对路径回跳，避免开放重定向
+  const rawRedirect = searchParams.get("redirect") || "/";
+  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
   const login = useAuthStore((s) => s.login);
   const register = useAuthStore((s) => s.register);
   const guest = useAuthStore((s) => s.guest);

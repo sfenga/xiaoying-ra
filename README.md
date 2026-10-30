@@ -2,7 +2,13 @@
 
 一个可独立运行的素材制作网站：浏览模板 → 上传图片 → 提交制作任务 → 后台异步处理（可控制耗时与成功/失败的模拟生成器）→ 查看历史记录与制作结果。
 
-> 题目原文见 [docs/exam-requirements.md](docs/exam-requirements.md)；参考截图见 [docs/ui-reference/](docs/ui-reference/)。
+| 模板列表 | 详情与制作（处理中/失败/成功并存） |
+|---|---|
+| ![模板列表](docs/screenshots/01-template-list.png) | ![详情与制作](docs/screenshots/02-detail-processing-history.png) |
+| **执行明细（分步边界）** | **后端停机时：查询异常 ≠ 任务失败** |
+| ![执行明细](docs/screenshots/03-task-steps-detail.png) | ![查询异常](docs/screenshots/04-query-outage-banner.png) |
+
+> 题目原文见 [docs/exam-requirements.md](docs/exam-requirements.md)；参考截图见 [docs/ui-reference/](docs/ui-reference/)；以上为运行实测截图，更多见 [docs/screenshots/](docs/screenshots/)。
 
 ## 一、技术版本
 
@@ -52,9 +58,10 @@ xiaoying-ra/
 
 ```bash
 docker compose up --build
-# 首次构建约 3-8 分钟，完成后：
+# 首次构建约 3-8 分钟（内置健康检查链：mysql → backend → frontend）
+# 完成后：
 #   前端：http://localhost:3000
-#   后端：http://localhost:8080（Swagger 未启用，接口见第六节）
+#   后端：http://localhost:8080（接口文档 http://localhost:8080/swagger-ui.html）
 #   MySQL：localhost:3306（账号 xiaoying / xiaoying123，仅本地调试用）
 ```
 
@@ -157,6 +164,14 @@ npm run build                  # 生产构建
 4. 卡片自动变为"处理中 · 素材检查/模拟生成/结果整理"（带阶段进度条）；默认总耗时约 16 秒后显示"✓ 完成"与结果图。可点"执行明细"查看三步的状态与消息。
 
 ### 2) 指定阶段失败（两种方式）
+
+先拿到一个可用 token（供脚本演示）：
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/guest | sed 's/.*"token":"\([^"]*\)".*/\1/')
+echo $TOKEN
+```
+
 - **全局注入（对之后所有新任务生效）**：
   ```bash
   curl -X PUT http://localhost:8080/api/dev/simulation \
@@ -205,15 +220,16 @@ curl -X PUT http://localhost:8080/api/dev/simulation \
 
 ## 九、已完成 / 未完成与已知限制
 
-**已完成**：题目 R-01 至 R-14 全部要求的功能与工程项（模板列表/分类、详情与上传校验、异步三步处理、失败注入与耗时调节、多任务跟踪与轮询生命周期、刷新恢复、查询异常与任务失败区分、用户身份与隔离、CI、测试、Compose 交付、README）。
+**已完成**：题目 R-01 至 R-14 全部要求的功能与工程项（模板列表/分类、详情与上传校验、异步三步处理、失败注入与耗时调节、多任务跟踪与轮询生命周期、刷新恢复、查询异常与任务失败区分、用户身份与隔离、CI、测试、Compose 交付、README），另含提交事务化（任务/步骤/素材绑定原子落库，事务提交后再投递异步执行）、OpenAPI 文档（`/swagger-ui.html`）与接口自测脚本（`scripts/api-e2e.mjs`，27 项断言）。
 
 **未完成 / 边界取舍（题目允许范围）**：
 - **断点续跑 / 服务重启后自动恢复执行**：未实现。重启后未完成任务标记为 FAILED（原因可读），用户可重新提交。理由：题目明确不要求；实现需要任务级 checkpoint 与素材绑定校验，复杂度收益比低。
 - **失败任务重做**：未提供"一键重试失败任务"，重新上传/提交即可（题目不要求）。
 - **对象存储 / 消息队列 / Redis / SSE**：按题目允许，使用本地磁盘 + 轮询实现。
-- **已知限制**：模拟结果图是预置图片按任务哈希选取，不做真实图像处理；上传文件不做病毒扫描；Token 撤销依赖会话表（无黑名单）；Dev 调参接口默认开启（仅演示用途，生产可 `SIM_DEV_API=false` 关闭）。
+- **已知限制**：模拟结果图是预置图片按任务哈希选取，不做真实图像处理；上传文件不做病毒扫描；历史列表不分页（演示规模足够，生产应加游标分页）；Token 撤销依赖会话表（无黑名单）；Dev 调参接口默认关闭（演示 compose 中显式开启 `SIM_DEV_API=true`）。
+- **关于任务受理幂等的讨论**（题目扩展项，未实现）：当前同一用户重复提交相同素材会被"素材已被其他任务使用"约束拦截，天然防止了大部分重复受理；若要做完全幂等，可为提交请求增加客户端生成的 idempotency-key 并在 t_task 上唯一索引，重复请求直接返回首次创建的任务。取舍：演示场景收益低，未纳入本期。
 
-**实际投入**：约 2.5 小时（2026-10-30 23:10 开始：后端实现与调试约 1 小时、前端实现与调试约 50 分钟、测试编写与修复约 20 分钟、Compose/CI/README 约 20 分钟、运行走查与代码审查修复约 20 分钟；取舍集中在"不做断点续跑/真实图像处理"）。
+**实际投入**：约 4 小时（2026-10-30 23:10 开始。第一轮：后端实现与调试约 1 小时、前端实现与调试约 50 分钟、测试编写与修复约 20 分钟、Compose/CI/README 约 20 分钟、运行走查与代码审查修复约 20 分钟；第二轮完善：提交事务化与 afterCommit 投递、异常处理兜底、Swagger、组件测试、redirect 回跳链路、移动端适配与走查、FAQ 与截图文档约 1.5 小时。取舍集中在"不做断点续跑/真实图像处理"）。
 
 ## 十、部署与回滚
 
@@ -242,3 +258,15 @@ curl -X PUT http://localhost:8080/api/dev/simulation \
 - 后端为手工组织的标准 Spring Boot Maven 工程，未使用代码生成器。
 - 示例封面/结果图由 `scripts/generate-images.mjs`（纯 Node zlib 手写 PNG 编码）程序化生成，无第三方素材版权问题；题目示例模板字段已按本项目结构重新设计。
 - 参考截图（docs/ui-reference/）为题目附件，仅作 UI 布局参考，未复用其中品牌素材。
+
+## 十三、常见问题排查（FAQ）
+
+| 现象 | 原因与处理 |
+|---|---|
+| `3000/8080/3306 端口被占用` | 修改 `docker-compose.yml` 中对应 `ports` 左侧端口后重新 `docker compose up -d` |
+| backend 容器反复重启 / 日志见 `Communications link failure` | MySQL 尚未就绪；服务已配置自动重启与健康检查，通常 30 秒内自愈，也可 `docker compose logs backend` 查看进度 |
+| 首次构建很慢 | Maven/npm 首层依赖下载；已做分层缓存，二次构建很快。可配置国内镜像源加速 |
+| 页面顶部出现"任务查询暂时不可用" | 后端暂时不可达（重启/网络），任务状态保持不变，恢复后自动续查；也可点击"立即重试" |
+| 上传提示"仅需 N 张图片" | 模板上传位有数量上限，替换图片会自动清理被换下的素材；也可先点 ✕ 移除再传 |
+| 想清空全部数据重来 | `docker compose down -v` 后重新 `up`（会删除 MySQL 数据与已上传文件） |
+| 修改了 `application.yml` / 模拟参数 | 重新 `docker compose up --build -d backend`，或运行中直接调 `PUT /api/dev/simulation` |
