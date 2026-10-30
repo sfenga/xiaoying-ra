@@ -113,17 +113,17 @@ function DetailPageContent() {
       const previousAsset = slots[slotIndex]?.asset;
       setSlots((prev) => prev.map((s, i) => (i === slotIndex ? { ...s, uploading: true, error: null } : s)));
       try {
+        // 替换场景：先移除旧素材释放上传配额，再上传新素材。
+        // 若删除失败则中止替换并保留旧图；删除成功但上传失败时槽位清空，用户可直接重传。
+        if (previousAsset) {
+          await api(`/api/assets/${previousAsset.id}`, { method: "DELETE" });
+          setSlots((prev) => prev.map((s, i) => (i === slotIndex ? { ...s, asset: null } : s)));
+        }
         const form = new FormData();
         form.append("templateId", template.id);
         form.append("file", file);
         const asset = await api<AssetView>("/api/assets", { method: "POST", body: form });
         setSlots((prev) => prev.map((s, i) => (i === slotIndex ? { asset, uploading: false, error: null } : s)));
-        // 替换场景：清理被换下的素材，避免其占用上传配额
-        if (previousAsset) {
-          api(`/api/assets/${previousAsset.id}`, { method: "DELETE" }).catch(() => {
-            // 清理失败不影响新素材使用（提交时服务端会校验配额）
-          });
-        }
       } catch (err) {
         setSlots((prev) =>
           prev.map((s, i) => (i === slotIndex ? { ...s, uploading: false, error: err instanceof Error ? err.message : "上传失败" } : s))
