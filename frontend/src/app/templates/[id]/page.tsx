@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { formatBytesLimit } from "@/lib/format";
-import { startTaskPolling, useTaskStore, isTerminal } from "@/lib/taskStore";
+import { isTerminal, resumeTaskPolling, useTaskStore } from "@/lib/taskStore";
 import type { AssetView, TaskView, TemplateView } from "@/lib/types";
 import UploadSlot, { type SlotState } from "@/components/UploadSlot";
 import HistoryPanel from "@/components/HistoryPanel";
@@ -35,14 +35,26 @@ function DetailPageContent() {
   // 页面期间自动跟踪任务（卸载时释放）
   useTaskPollingLifecycle();
 
+  // 防竞态：模板切换或组件卸载后，丢弃过期的历史响应
+  const mountedRef = useRef(true);
+  const activeTemplateRef = useRef(templateId);
+  useEffect(() => {
+    activeTemplateRef.current = templateId;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [templateId]);
+
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
       const res = await api<{ tasks: TaskView[] }>(`/api/tasks?templateId=${encodeURIComponent(templateId)}`);
+      if (!mountedRef.current || activeTemplateRef.current !== templateId) return;
       upsertMany(res.tasks);
       // 刷新恢复（R-09）：存在未结束任务则恢复自动跟踪
       if (res.tasks.some((t) => !isTerminal(t))) {
-        startTaskPolling();
+        resumeTaskPolling();
       }
     } catch {
       // 查询异常由全局 queryError 呈现，此处无需重复提示
@@ -98,6 +110,7 @@ function DetailPageContent() {
         return;
       }
       setSubmitError(null);
+      const previousAsset = slots[slotIndex]?.asset;
       setSlots((prev) => prev.map((s, i) => (i === slotIndex ? { ...s, uploading: true, error: null } : s)));
       try {
         const form = new FormData();
@@ -105,13 +118,19 @@ function DetailPageContent() {
         form.append("file", file);
         const asset = await api<AssetView>("/api/assets", { method: "POST", body: form });
         setSlots((prev) => prev.map((s, i) => (i === slotIndex ? { asset, uploading: false, error: null } : s)));
+        // 替换场景：清理被换下的素材，避免其占用上传配额
+        if (previousAsset) {
+          api(`/api/assets/${previousAsset.id}`, { method: "DELETE" }).catch(() => {
+            // 清理失败不影响新素材使用（提交时服务端会校验配额）
+          });
+        }
       } catch (err) {
         setSlots((prev) =>
           prev.map((s, i) => (i === slotIndex ? { ...s, uploading: false, error: err instanceof Error ? err.message : "上传失败" } : s))
         );
       }
     },
-    [template]
+    [template, slots]
   );
 
   const removeAsset = useCallback(
@@ -139,7 +158,7 @@ function DetailPageContent() {
         body: JSON.stringify({ templateId: template.id, assetIds: filledAssets }),
       });
       upsertMany([res.task]);
-      startTaskPolling();
+      resumeTaskPolling();
       setSlots(emptySlots(template.requiredImageCount));
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "提交失败，请重试");

@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { isTerminal, useTaskStore } from "@/lib/taskStore";
-import { startTaskPolling } from "@/lib/taskStore";
+import { isTerminal, resumeTaskPolling, useTaskStore } from "@/lib/taskStore";
 import type { TaskView } from "@/lib/types";
 import TaskHistoryCard from "@/components/TaskHistoryCard";
 import Spinner from "@/components/Spinner";
@@ -51,7 +50,7 @@ export default function HistoryPanel({
       {queryError && (
         <div role="alert" className="mb-3 rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-2.5 text-sm text-amber-200">
           任务查询暂时不可用（{queryError}）。已有任务状态保持不变，正在自动恢复查询；
-          <button type="button" onClick={() => startTaskPolling()} className="ml-1 underline underline-offset-2 hover:text-amber-100">
+          <button type="button" onClick={() => resumeTaskPolling()} className="ml-1 underline underline-offset-2 hover:text-amber-100">
             立即重试
           </button>
         </div>

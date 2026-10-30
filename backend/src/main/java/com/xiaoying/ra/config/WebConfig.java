@@ -43,6 +43,10 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/auth/register",
                         "/api/auth/login",
                         "/api/auth/guest",
+                        // 模板浏览公开：未登录可看列表与详情，上传/提交需登录
+                        "/api/templates",
+                        "/api/templates/categories",
+                        "/api/templates/*",
                         // 演示用开发调参接口不要求登录，便于脚本/README 演示
                         "/api/dev/**");
     }

@@ -127,8 +127,8 @@ class TaskFlowIntegrationTest {
 
         JsonNode submitted = submitTask(token, "demo-postcard", List.of(a1, a2), null);
         String taskId = submitted.get("task").get("id").asText();
-        // 受理即返回：初始为 PENDING，且已有 3 条步骤记录
-        assertThat(submitted.get("task").get("status").asText()).isEqualTo("PENDING");
+        // 受理即返回：立即处于非终态（PENDING 或已被异步线程标记为 PROCESSING），且已有 3 条步骤记录
+        assertThat(submitted.get("task").get("status").asText()).isIn("PENDING", "PROCESSING");
         assertThat(submitted.get("steps")).hasSize(3);
         assertThat(submitted.get("task").get("resultUrl").isNull()).isTrue();
 

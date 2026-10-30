@@ -47,7 +47,10 @@ public class TaskRunner {
         if (task == null || task.getStatus() != TaskStatus.PENDING) {
             return;
         }
-        taskMapper.markProcessing(taskId, TaskStage.ASSET_CHECK, LocalDateTime.now());
+        // CAS 抢占：仅当任务仍是 PENDING 时才开始处理，防止重复执行
+        if (taskMapper.markProcessing(taskId, TaskStage.ASSET_CHECK, LocalDateTime.now()) == 0) {
+            return;
+        }
         log.info("任务开始处理：{}", taskId);
         try {
             if (!runStep(task, TaskStage.ASSET_CHECK, () -> checkAssets(task))) {

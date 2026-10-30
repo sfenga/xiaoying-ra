@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
-import { TASK_STAGE_LABELS } from "@/lib/types";
+import { TASK_STAGES, TASK_STAGE_LABELS } from "@/lib/types";
 import type { StepView, TaskView } from "@/lib/types";
 import Spinner from "@/components/Spinner";
 
@@ -58,8 +58,8 @@ export default function TaskHistoryCard({ task }: { task: TaskView }) {
             </p>
             {task.status === "PROCESSING" && task.stage && (
               <div className="mt-3 flex items-center justify-center gap-1" aria-label={`当前阶段：${TASK_STAGE_LABELS[task.stage]}`}>
-                {(["ASSET_CHECK", "GENERATE", "FINALIZE"] as const).map((stage, i) => {
-                  const currentIndex = ["ASSET_CHECK", "GENERATE", "FINALIZE"].indexOf(task.stage!);
+                {TASK_STAGES.map((stage, i) => {
+                  const currentIndex = TASK_STAGES.indexOf(task.stage!);
                   const done = i < currentIndex;
                   const current = i === currentIndex;
                   return (

@@ -52,6 +52,8 @@ export function isTerminal(task: TaskView): boolean {
 // ---------------- 轮询生命周期（R-08） ----------------
 // 单一共享轮询循环：只请求未结束任务；全部结束后自动停止；
 // 页面卸载/用户切换时通过 stopTaskPolling 作废在途请求，避免旧响应覆盖新数据。
+// 引用计数只在页面级 hook（useTaskPollingLifecycle）中配对增减；
+// 数据加载/提交成功后的调用使用 resumeTaskPolling，仅确保轮询恢复、不持有引用。
 
 let polling = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -60,11 +62,23 @@ let requestInFlight = false;
 /** 正在使用轮询的页面计数，归零即停止 */
 let lifecycleUsers = 0;
 
-export function startTaskPolling(): void {
-  lifecycleUsers += 1;
+function ensureStarted(): void {
   if (polling) return;
   polling = true;
   scheduleNext(0);
+}
+
+/** 页面级 hook 使用：持有轮询引用，配对 releaseTaskPolling。 */
+export function startTaskPolling(): void {
+  lifecycleUsers += 1;
+  ensureStarted();
+}
+
+/** 数据加载/提交后使用：在仍有页面持有引用时恢复轮询，不增加计数。 */
+export function resumeTaskPolling(): void {
+  if (lifecycleUsers > 0) {
+    ensureStarted();
+  }
 }
 
 export function stopTaskPolling(): void {
@@ -76,7 +90,7 @@ export function stopTaskPolling(): void {
   }
 }
 
-/** 页面级生命周期：挂载启用轮询，卸载时若无其他页面使用则停止。 */
+/** 页面级 hook 卸载时使用：释放引用，最后一个使用者离开即停止轮询。 */
 export function releaseTaskPolling(): void {
   lifecycleUsers = Math.max(0, lifecycleUsers - 1);
   if (lifecycleUsers === 0) {

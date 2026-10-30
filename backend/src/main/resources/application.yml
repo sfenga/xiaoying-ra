@@ -35,8 +35,8 @@ simulator:
   generate-ms: ${SIM_GENERATE_MS:8000}
   finalize-ms: ${SIM_FINALIZE_MS:4000}
   fail-stage: ${SIM_FAIL_STAGE:NONE}
-  # 是否暴露 /api/dev/simulation 开发调参接口（演示用）
-  dev-api-enabled: ${SIM_DEV_API:true}
+  # 是否暴露 /api/dev/simulation 开发调参接口（默认关闭；compose 演示环境显式开启）
+  dev-api-enabled: ${SIM_DEV_API:false}
 
 logging:
   level:

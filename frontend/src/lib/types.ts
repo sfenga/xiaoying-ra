@@ -54,6 +54,8 @@ export interface SimulationConfig {
   durations: { assetCheckMs: number; generateMs: number; finalizeMs: number };
 }
 
+export const TASK_STAGES: TaskStage[] = ["ASSET_CHECK", "GENERATE", "FINALIZE"];
+
 export const TASK_STAGE_LABELS: Record<TaskStage, string> = {
   ASSET_CHECK: "素材检查",
   GENERATE: "模拟生成",

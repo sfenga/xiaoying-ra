@@ -18,6 +18,7 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped # MySQL 初始化竞态时自动重试
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
@@ -30,6 +31,7 @@ services:
       SIM_GENERATE_MS: 8000
       SIM_FINALIZE_MS: 4000
       SIM_FAIL_STAGE: NONE
+      SIM_DEV_API: true # 演示环境打开 /api/dev/simulation 调参接口
     ports:
       - "8080:8080"
     volumes:

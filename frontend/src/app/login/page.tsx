@@ -20,7 +20,7 @@ function LoginForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const done = () => router.replace(redirect);
+  const goToRedirectTarget = () => router.replace(redirect);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -33,7 +33,7 @@ function LoginForm() {
       } else {
         await register(username.trim(), password, displayName.trim() || undefined);
       }
-      done();
+      goToRedirectTarget();
     } catch (err) {
       setError(err instanceof Error ? err.message : "操作失败，请重试");
     } finally {
@@ -47,7 +47,7 @@ function LoginForm() {
     setError(null);
     try {
       await guest();
-      done();
+      goToRedirectTarget();
     } catch (err) {
       setError(err instanceof Error ? err.message : "操作失败，请重试");
     } finally {

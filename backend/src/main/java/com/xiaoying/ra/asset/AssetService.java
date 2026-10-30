@@ -70,9 +70,9 @@ public class AssetService {
         String name = UUID.randomUUID().toString().replace("-", "") + "." + ext;
         String storedPath = month + "/" + name;
         try {
-            Path dir = Paths.get(uploadDir, month).toAbsolutePath().normalize();
-            Files.createDirectories(dir);
-            Files.write(dir.resolve(name), bytes);
+            Path target = resolveStored(storedPath);
+            Files.createDirectories(target.getParent());
+            Files.write(target, bytes);
         } catch (IOException e) {
             log.error("保存上传文件失败", e);
             throw new ApiException(500, "保存上传文件失败");
@@ -100,7 +100,7 @@ public class AssetService {
         }
         assetMapper.deleteById(assetId);
         try {
-            Files.deleteIfExists(Paths.get(uploadDir, asset.getStoredPath()).toAbsolutePath().normalize());
+            Files.deleteIfExists(resolveStored(asset.getStoredPath()));
         } catch (IOException e) {
             log.warn("删除素材文件失败：{}", asset.getStoredPath(), e);
         }
@@ -136,12 +136,22 @@ public class AssetService {
 
     /** 后台素材检查步骤使用：确认文件仍然存在于磁盘。 */
     public boolean fileExists(Asset asset) {
-        Path path = Paths.get(uploadDir, asset.getStoredPath()).toAbsolutePath().normalize();
         try {
+            Path path = resolveStored(asset.getStoredPath());
             return Files.exists(path) && Files.size(path) > 0;
         } catch (IOException e) {
             return false;
         }
+    }
+
+    /** 将库中存储的相对路径解析到上传根目录内；越界路径直接拒绝（纵深防御）。 */
+    private Path resolveStored(String relativePath) {
+        Path base = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path resolved = base.resolve(relativePath).normalize();
+        if (!resolved.startsWith(base)) {
+            throw ApiException.badRequest("非法的素材路径");
+        }
+        return resolved;
     }
 
     /** 通过文件头魔数判断真实类型，避免仅信任 Content-Type。 */

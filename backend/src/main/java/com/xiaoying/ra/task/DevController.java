@@ -13,12 +13,13 @@ import java.util.Map;
 
 /**
  * 演示用开发调参接口（R-06，可选能力）：运行中查看/调整模拟耗时与全局失败注入。
- * 由 simulator.dev-api-enabled 控制是否暴露；正式部署可关闭。
+ * 默认关闭（simulator.dev-api-enabled=false），演示环境可通过配置/compose 打开；
+ * 该接口不要求登录，仅用于脚本与评审演示，正式部署应保持关闭。
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/dev")
-@ConditionalOnProperty(name = "simulator.dev-api-enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "simulator.dev-api-enabled", havingValue = "true", matchIfMissing = false)
 public class DevController {
 
     private final SimulationSettings settings;
