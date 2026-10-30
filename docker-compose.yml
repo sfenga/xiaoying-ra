@@ -1,0 +1,52 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: xiaoying_ra
+      MYSQL_USER: xiaoying
+      MYSQL_PASSWORD: xiaoying123
+    ports:
+      - "3306:3306" # 便于本地调试，不需要可删除
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uxiaoying", "-pxiaoying123"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build: ./backend
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: xiaoying_ra
+      DB_USER: xiaoying
+      DB_PASSWORD: xiaoying123
+      UPLOAD_DIR: /data/uploads
+      # 模拟器默认参数（可通过环境变量调整）
+      SIM_ASSET_CHECK_MS: 4000
+      SIM_GENERATE_MS: 8000
+      SIM_FINALIZE_MS: 4000
+      SIM_FAIL_STAGE: NONE
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_ORIGIN: http://backend:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
+  uploads:

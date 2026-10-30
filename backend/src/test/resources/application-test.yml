@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    # 测试使用 H2 MySQL 兼容模式，无需真实 MySQL 即可验证业务逻辑
+    url: jdbc:h2:mem:xiaoying_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 30MB
+
+app:
+  upload-dir: target/test-uploads
+
+# 测试环境缩短模拟耗时，便于异步等待断言
+simulator:
+  asset-check-ms: 120
+  generate-ms: 120
+  finalize-ms: 120
+  fail-stage: NONE
+  dev-api-enabled: true

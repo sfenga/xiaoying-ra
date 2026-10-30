@@ -1,0 +1,43 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: xiaoying-ra-backend
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:xiaoying_ra}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: ${DB_USER:xiaoying}
+    password: ${DB_PASSWORD:xiaoying123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      # schema.sql 全部使用 IF NOT EXISTS，重复执行安全
+      mode: always
+      schema-locations: classpath:schema.sql
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 30MB
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+app:
+  upload-dir: ${UPLOAD_DIR:./data/uploads}
+  auth:
+    token-ttl-hours: ${TOKEN_TTL_HOURS:72}
+
+# 模拟生成器配置（R-06）：耗时可调；fail-stage 可注入固定失败阶段
+# NONE / ASSET_CHECK / GENERATE / FINALIZE
+simulator:
+  asset-check-ms: ${SIM_ASSET_CHECK_MS:4000}
+  generate-ms: ${SIM_GENERATE_MS:8000}
+  finalize-ms: ${SIM_FINALIZE_MS:4000}
+  fail-stage: ${SIM_FAIL_STAGE:NONE}
+  # 是否暴露 /api/dev/simulation 开发调参接口（演示用）
+  dev-api-enabled: ${SIM_DEV_API:true}
+
+logging:
+  level:
+    com.xiaoying.ra: INFO
