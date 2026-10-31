@@ -115,7 +115,8 @@ npm run build                  # 生产构建
 | `SIM_ASSET_CHECK_MS` / `SIM_GENERATE_MS` / `SIM_FINALIZE_MS` | `4000` / `8000` / `4000` | 三步模拟耗时（毫秒，运行中也可调，见下） |
 | `SIM_FAIL_STAGE` | `NONE` | 全局失败注入：`NONE`/`ASSET_CHECK`/`GENERATE`/`FINALIZE` |
 | `SIM_DEV_API` | `false`（compose 演示环境为 `true`） | 是否暴露 `/api/dev/simulation` 调参接口（不要求登录，仅演示用） |
-| `BACKEND_ORIGIN`（前端） | `http://localhost:8080` | rewrites 代理目标 |
+| `SWAGGER_ENABLED` | `true` | 是否启用 OpenAPI 文档（`/swagger-ui.html`），生产环境可关闭 |
+| `BACKEND_ORIGIN`（前端） | `http://localhost:8080` | 运行时代理目标（`src/middleware.ts`） |
 
 数据库初始化与模拟数据准备：全部自动化（schema.sql + TemplateSeeder + 打包图片），无需手工步骤。样例上传图片在 `docs/sample-uploads/`，可直接用于页面上传演示。
 
@@ -222,6 +223,8 @@ curl -X PUT http://localhost:8080/api/dev/simulation \
 
 **已完成**：题目 R-01 至 R-14 全部要求的功能与工程项（模板列表/分类、详情与上传校验、异步三步处理、失败注入与耗时调节、多任务跟踪与轮询生命周期、刷新恢复、查询异常与任务失败区分、用户身份与隔离、CI、测试、Compose 交付、README），另含提交事务化（任务/步骤/素材绑定原子落库，事务提交后再投递异步执行）、OpenAPI 文档（`/swagger-ui.html`）与接口自测脚本（`scripts/api-e2e.mjs`，27 项断言）。
 
+**验收 commit**：`d9abb30`（tag `acceptance`），提交历史共 4 个 commit，工作树干净。
+
 **未完成 / 边界取舍（题目允许范围）**：
 - **断点续跑 / 服务重启后自动恢复执行**：未实现。重启后未完成任务标记为 FAILED（原因可读），用户可重新提交。理由：题目明确不要求；实现需要任务级 checkpoint 与素材绑定校验，复杂度收益比低。
 - **失败任务重做**：未提供"一键重试失败任务"，重新上传/提交即可（题目不要求）。
@@ -250,7 +253,7 @@ curl -X PUT http://localhost:8080/api/dev/simulation \
 2. **上下文提供**：将题目原文、参考截图、既有代码结构和已通过的测试结果作为上下文逐步喂给 AI，每步只关注当前模块。
 3. **生成/修改**：AI 生成各模块代码与配置；关键设计（三步状态机、单一轮询器、失败注入的优先级：任务级 > 全局）由 AI 先给出方案再实现。
 4. **验证与修正**：每完成一块立即运行验证（`mvn test`、`vitest`、`next build`、`docker compose up`），把真实报错回喂 AI 修复。过程中实际修复的问题包括：两个 Stage 枚举类型冲突、MockMvc 响应体 ISO-8859-1 乱码、测试 profile 未激活导致连不上 MySQL、vitest 5 与 Node 20 类型依赖冲突、轮询"全部终态后停止"的断言模型等。
-5. **结果**：最终以"全栈运行走查 + 后端 8 项 / 前端 9 项自动化测试 + 需求逐条验收"完成自审；人工复核了接口契约、状态不可逆语义与异常路径。
+5. **结果**：最终以"全栈运行走查 + 后端 9 项 / 前端 16 项自动化测试 + 接口自测脚本 27 项断言 + 需求逐条验收"完成自审；人工复核了接口契约、状态不可逆语义与异常路径。
 
 ## 十二、脚手架与素材来源
 
