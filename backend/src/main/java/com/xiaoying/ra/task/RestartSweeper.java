@@ -34,7 +34,7 @@ public class RestartSweeper {
         LocalDateTime now = LocalDateTime.now();
         for (Task task : active) {
             taskMapper.markFailed(task.getId(), task.getStage(),
-                    "服务重启导致任务中断（当前版本未实现断点恢复）", now);
+                    "服务重启导致任务中断，请重新提交（未实现断点恢复）", now);
             stepMapper.findByTaskId(task.getId()).stream()
                     .filter(s -> s.getStatus() != TaskStep.Status.SUCCESS
                             && s.getStatus() != TaskStep.Status.FAILED)
